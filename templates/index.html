@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineGAN | Cinematic Transformation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg-core: #050505;
+        --bg-panel: #0F0F0F;
+        --bg-card: #141414;
+        --border-subtle: #222222;
+        --border-highlight: #333333;
+        --text-primary: #F0F0F0;
+        --text-secondary: #888888;
+        --accent-gold: #E1C564;
+        --accent-gold-dim: #8A7630;
+        --status-green: #4CAF50;
+        
+        --radius-lg: 24px;
+        --radius-md: 16px;
+        --radius-sm: 8px;
+        --radius-full: 9999px;
+        
+        --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+        --ease-morph: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-core);
+        color: var(--text-primary);
+        font-family: 'Manrope', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+
+      h1 { font-weight: 600; font-size: 1.5rem; letter-spacing: -0.02em; }
+      h2 { font-weight: 500; font-size: 2rem; letter-spacing: -0.03em; margin-bottom: 1rem; }
+      p { color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem; }
+      
+      .label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+
+      .app-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 24px;
+        width: 100%;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      
+      .brand-icon { 
+        color: var(--accent-gold);
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 40px 0;
+        gap: 40px;
+      }
+
+      .btn {
+        background: transparent;
+        border: 1px solid var(--border-highlight);
+        color: var(--text-primary);
+        padding: 12px 24px;
+        border-radius: var(--radius-full);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s var(--ease-out-expo);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+      }
+
+      .btn:hover {
+        border-color: var(--text-secondary);
+        background: var(--bg-panel);
+      }
+
+      .btn-primary {
+        background: var(--accent-gold);
+        color: black;
+        border: none;
+        font-weight: 600;
+      }
+
+      .btn-primary:hover {
+        background: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px -5px rgba(225, 197, 100, 0.2);
+      }
+
+      .btn-primary:disabled {
+        background: var(--border-subtle);
+        color: var(--text-secondary);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .upload-zone {
+        height: 400px;
+        border: 1px dashed var(--border-highlight);
+        border-radius: var(--radius-lg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: linear-gradient(180deg, rgba(20,20,20,0) 0%, rgba(20,20,20,0.4) 100%);
+      }
+
+      .upload-zone:hover {
+        border-color: var(--accent-gold);
+        background: rgba(225, 197, 100, 0.02);
+      }
+
+      .upload-zone.dragover {
+        border-color: var(--accent-gold);
+        background: rgba(225, 197, 100, 0.05);
+      }
+
+      .upload-icon-wrapper {
+        padding: 24px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+        margin-bottom: 24px;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+
+      .viewport {
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: var(--radius-md);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+      }
+
+      .viewport img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: filter 1.5s var(--ease-morph), transform 1.5s var(--ease-morph);
+        will-change: filter, transform;
+        filter: blur(0px) brightness(1) saturate(1);
+        transform: scale(1);
+      }
+
+      .viewport.processing img {
+        filter: blur(32px) brightness(0.7) saturate(1.5) contrast(1.2);
+        transform: scale(1.05);
+      }
+
+      .generation-overlay {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(225, 197, 100, 0.5) 0%, rgba(225, 197, 100, 0.1) 50%, transparent 80%);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 10;
+        mix-blend-mode: screen;
+        transition: opacity 0.5s ease;
+      }
+      
+      .strobe-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.1) 40%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.1) 60%, transparent 100%);
+        background-size: 100% 200%;
+        opacity: 0;
+        z-index: 11;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+      }
+
+      .viewport.processing .generation-overlay {
+        opacity: 1;
+        animation: pulse-generation 1.5s infinite ease-in-out;
+      }
+      
+      .viewport.processing .strobe-overlay {
+        opacity: 1;
+        animation: scan-vertical 2s infinite linear;
+      }
+
+      .flash-overlay {
+        position: absolute;
+        inset: 0;
+        background: white;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 20;
+      }
+
+      .flash-overlay.flash-active {
+        animation: flash 0.8s ease-out;
+      }
+
+      .status-badge {
+        position: absolute;
+        bottom: 24px;
+        left: 24px;
+        background: rgba(0,0,0,0.6);
+        padding: 8px 16px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(225, 197, 100, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 15;
+      }
+
+      .status-badge .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-gold);
+        border-radius: 50%;
+        animation: pulse-dot 1s infinite;
+      }
+
+      .progress-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-subtle);
+        padding: 16px 0;
+        transform: translateY(100%);
+        transition: transform 0.5s var(--ease-out-expo);
+        z-index: 100;
+      }
+
+      .progress-container.visible {
+        transform: translateY(0);
+      }
+
+      .progress-bar-track {
+        height: 4px;
+        background: var(--border-highlight);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-bar-fill {
+        height: 100%;
+        background: var(--accent-gold);
+        width: 0%;
+        transition: width 0.2s linear;
+      }
+
+      .status-text {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-family: monospace;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      @keyframes pulse-generation {
+        0% { opacity: 0.4; transform: scale(0.95); }
+        50% { opacity: 1; transform: scale(1.05); }
+        100% { opacity: 0.4; transform: scale(0.95); }
+      }
+
+      @keyframes scan-vertical {
+        0% { background-position: 0% -100%; }
+        100% { background-position: 0% 200%; }
+      }
+
+      @keyframes flash {
+        0% { opacity: 0; }
+        10% { opacity: 0.8; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+      
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: var(--bg-core); }
+      ::-webkit-scrollbar-thumb { background: var(--border-highlight); border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+      .hidden { display: none; }
+      .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="fade-in" style="animation-delay: 0s;">
+            <div class="brand">
+                <span class="brand-icon">⦿</span>
+                <h1>CineGAN</h1>
+            </div>
+            <a href="https://github.com/AntareepDey/CineGAN" target="_blank" class="btn">
+                <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <span>Github</span>
+            </a>
+        </header>
+        <main class="main-content">
+            <div id="uploadView" class="fade-in" style="animation-delay: 0.1s;">
+                <div class="upload-zone" id="uploadZone">
+                    <input type="file" id="fileInput" hidden accept="image/*">
+                    <div class="upload-icon-wrapper">
+                        <svg style="width: 32px; height: 32px;" class="brand-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    </div>
+                    <h2>Upload Source Footage</h2>
+                    <p>Drag and drop or click to browse. High resolution recommended.</p>
+                    <span class="label" style="margin-top: 16px;">Supported Formats: JPG, PNG, WEBP</span>
+                </div>
+            </div>
+
+            <!-- Workspace View -->
+            <div id="workspaceView" class="workspace fade-in hidden">
+                <div class="viewport card" id="viewport">
+                    <img id="viewportImg" alt="Cinematic Frame">
+                    
+                    <div class="generation-overlay"></div>
+                    <div class="strobe-overlay"></div>
+                    <div class="flash-overlay" id="flashOverlay"></div>
+                    
+                    <div class="status-badge hidden" id="statusBadge">
+                        <div class="pulse-dot"></div>
+                        <span class="label" style="margin: 0; color: #F0F0F0; font-size: 0.75rem;">Generating Latent Space...</span>
+                    </div>
+                </div>
+
+                <div class="controls" id="controls">
+                    <!-- Buttons will be inserted here -->
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="progress-container" id="progressContainer">
+        <div class="app-container">
+            <div class="status-text">
+                <span id="statusMessage">Processing...</span>
+                <span style="color: var(--accent-gold);" id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let originalImageUrl = null;
+        let processedImageUrl = null;
+        let isProcessing = false;
+        const uploadView = document.getElementById('uploadView');
+        const workspaceView = document.getElementById('workspaceView');
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const viewport = document.getElementById('viewport');
+        const viewportImg = document.getElementById('viewportImg');
+        const controls = document.getElementById('controls');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressPercent = document.getElementById('progressPercent');
+        const statusBadge = document.getElementById('statusBadge');
+        const flashOverlay = document.getElementById('flashOverlay');
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleFileSelect(file);
+            }
+        });
+
+        // File Input Change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFileSelect(file);
+        });
+
+        // Handle File Selection
+        function handleFileSelect(file) {
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImageUrl = e.target.result;
+                showWorkspace();
+            };
+            reader.readAsDataURL(file);
+        }
+        function showWorkspace() {
+            uploadView.classList.add('hidden');
+            workspaceView.classList.remove('hidden');
+            viewportImg.src = originalImageUrl;
+            controls.innerHTML = `
+                <button class="btn" onclick="reset()">Cancel</button>
+                <button class="btn btn-primary" onclick="transformImage()">
+                    <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                    Transform to Cinematic
+                </button>
+            `;
+        }
+
+        async function transformImage() {
+            if (isProcessing || !currentFile) return;
+            
+            isProcessing = true;
+            viewport.classList.add('processing');
+            statusBadge.classList.remove('hidden');
+
+            progressContainer.classList.add('visible');
+            statusMessage.textContent = 'Inferencing on Local Machine...';
+
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += 1;
+                    updateProgress(progress);
+                }
+            }, 50);
+
+            try {
+                const formData = new FormData();
+                formData.append('image', currentFile);
+
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                clearInterval(progressInterval);
+
+                if (data.success) {
+                    // Complete progress
+                    updateProgress(100);
+                    statusMessage.textContent = 'Transformation Complete';
+
+                    // Wait a moment then show result
+                    setTimeout(() => {
+                        processedImageUrl = data.output_url;
+                         
+                        // Trigger flash
+                        flashOverlay.classList.add('flash-active');
+                        setTimeout(() => flashOverlay.classList.remove('flash-active'), 800);
+
+                        // Remove processing state (triggers morph)
+                        viewport.classList.remove('processing');
+                        statusBadge.classList.add('hidden');
+
+                        // Update image
+                        viewportImg.src = processedImageUrl;
+
+                        // Update controls
+                        setTimeout(() => {
+                            controls.innerHTML = `
+                                <button class="btn" onclick="reset()">
+                                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    New Project
+                                </button>
+                                <a href="${processedImageUrl}" download="cinematic_${currentFile.name}" class="btn btn-primary">
+                                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    Save to Device
+                                </a>
+                            `;
+
+                            // Hide progress after delay
+                            setTimeout(() => {
+                                progressContainer.classList.remove('visible');
+                                isProcessing = false;
+                            }, 1500);
+                        }, 1000);
+
+                    }, 500);
+
+                } else {
+                    throw new Error(data.error || 'Processing failed');
+                }
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                console.error('Error:', error);
+                statusMessage.textContent = 'Error: ' + error.message;
+                viewport.classList.remove('processing');
+                statusBadge.classList.add('hidden');
+                
+                setTimeout(() => {
+                    progressContainer.classList.remove('visible');
+                    isProcessing = false;
+                }, 2000);
+            }
+        }
+
+        // Update Progress
+        function updateProgress(percent) {
+            progressBarFill.style.width = percent + '%';
+            progressPercent.textContent = Math.round(percent) + '%';
+        }
+
+        // Reset
+        function reset() {
+            currentFile = null;
+            originalImageUrl = null;
+            processedImageUrl = null;
+            isProcessing = false;
+            
+            workspaceView.classList.add('hidden');
+            uploadView.classList.remove('hidden');
+            
+            viewport.classList.remove('processing');
+            statusBadge.classList.add('hidden');
+            progressContainer.classList.remove('visible');
+            
+            fileInput.value = '';
+            updateProgress(0);
+        }
+    </script>
+</body>
+</html>
