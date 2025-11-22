@@ -36,6 +36,9 @@ cd CineGAN
 uv sync
 ```
 
+### 3. Download the model
+Download the model from [here](https://huggingface.co/antareepdey/CineGAN/resolve/main/generator.keras) and place it under ```models/```
+
 
 
 ## 💻 CLI Usage
